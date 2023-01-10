@@ -339,7 +339,8 @@ TEST_P(StorageTypeGraphTest, NodeTypesMultipleNodes)
     TestGraph::MemoryGraph m;
     m.m_nodes.push_back(TestGraph::Node{.m_id = 0, .m_type = 0, .m_weight = 1.0f});
     m.m_nodes.push_back(TestGraph::Node{.m_id = 1, .m_type = 2, .m_weight = 1.0f});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m), 3);
     snark::Metadata metadata(path.string());
     snark::Graph g(std::move(metadata), {path.string()}, std::vector<uint32_t>{0}, GetParam());
@@ -357,7 +358,8 @@ TEST_P(StorageTypeGraphTest, NodeFeaturesMultipleNodesSingleFeature)
     std::vector<std::vector<float>> f2 = {std::vector<float>{5.0f, 6.0f, 7.0f}};
     m.m_nodes.push_back(TestGraph::Node{.m_id = 0, .m_type = 0, .m_weight = 1.0f, .m_float_features = f1});
     m.m_nodes.push_back(TestGraph::Node{.m_id = 1, .m_type = 1, .m_weight = 1.0f, .m_float_features = f2});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m), 2);
     snark::Metadata metadata(path.string());
     snark::Graph g(std::move(metadata), {path.string()}, std::vector<uint32_t>{0}, GetParam());
@@ -375,7 +377,8 @@ TEST_P(StorageTypeGraphTest, NodeFeaturesMultipleNodesSingleFeatureMissingNode)
     TestGraph::MemoryGraph m;
     std::vector<std::vector<float>> f1 = {std::vector<float>{1.0f, 2.0f, 3.0f}};
     m.m_nodes.push_back(TestGraph::Node{.m_id = 0, .m_type = 0, .m_weight = 1.0f, .m_float_features = std::move(f1)});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m), 2);
     snark::Metadata metadata(path.string());
     snark::Graph g(std::move(metadata), {path.string()}, std::vector<uint32_t>{0}, GetParam());
@@ -398,7 +401,8 @@ TEST_P(StorageTypeGraphTest, NodeFeaturesLongFeatureList)
         feature_data.emplace_back(std::vector<float>{float(i), float(i + 1), float(i + 2)});
     }
     m.m_nodes.push_back(TestGraph::Node{.m_id = 0, .m_type = 0, .m_weight = 1.0f, .m_float_features = feature_data});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m), 2);
     snark::Metadata metadata(path.string());
     snark::Graph g(std::move(metadata), {path.string()}, std::vector<uint32_t>{0}, GetParam());
@@ -435,7 +439,8 @@ TEST_P(StorageTypeGraphTest, NodeFeaturesMultipleNodesMissingFeature)
     m.m_nodes.push_back(TestGraph::Node{.m_id = 0, .m_type = 0, .m_weight = 1.0f, .m_float_features = f1});
     m.m_nodes.push_back(TestGraph::Node{.m_id = 1, .m_type = 1, .m_weight = 1.0f, .m_float_features = f2});
     m.m_nodes.push_back(TestGraph::Node{.m_id = 2, .m_type = 1, .m_weight = 1.0f, .m_float_features = f2});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m), 2);
     snark::Metadata metadata(path.string());
     snark::Graph g(std::move(metadata), {path.string()}, std::vector<uint32_t>{0}, GetParam());
@@ -459,7 +464,8 @@ TEST_P(StorageTypeGraphTest, NodeFeaturesMultipleNodesWithDifferentFeatureTimest
     m.m_nodes.push_back(TestGraph::Node{.m_id = 0, .m_type = 0, .m_weight = 1.0f, .m_float_features = f1});
     m.m_nodes.push_back(TestGraph::Node{.m_id = 1, .m_type = 1, .m_weight = 1.0f, .m_float_features = f2});
     m.m_nodes.push_back(TestGraph::Node{.m_id = 2, .m_type = 1, .m_weight = 1.0f, .m_float_features = f2});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m), 2);
     snark::Metadata metadata(path.string());
     snark::Graph g(std::move(metadata), {path.string()}, std::vector<uint32_t>{0}, GetParam());
@@ -481,7 +487,8 @@ TEST_P(StorageTypeGraphTest, NodeFeaturesMultipleNodesSingleFeatureMixedSizes)
     std::vector<std::vector<float>> f2 = {std::vector<float>{11.0f, 12.0f}};
     m.m_nodes.push_back(TestGraph::Node{.m_id = 0, .m_type = 0, .m_weight = 1.0f, .m_float_features = f1});
     m.m_nodes.push_back(TestGraph::Node{.m_id = 1, .m_type = 1, .m_weight = 1.0f, .m_float_features = f2});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m), 2);
     snark::Metadata metadata(path.string());
     snark::Graph g(std::move(metadata), {path.string()}, std::vector<uint32_t>{0}, GetParam());
@@ -514,7 +521,8 @@ TEST_P(StorageTypeGraphTest, NodeSparseFeaturesMultipleNodes)
     std::vector<std::vector<float>> f2 = {std::vector<float>(start, start + f2_data.size())};
     m.m_nodes.push_back(TestGraph::Node{.m_id = 0, .m_type = 0, .m_weight = 1.0f, .m_float_features = f1});
     m.m_nodes.push_back(TestGraph::Node{.m_id = 1, .m_type = 1, .m_weight = 1.0f, .m_float_features = f2});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m), 2);
     snark::Metadata metadata(path.string());
     snark::Graph g(std::move(metadata), {path.string()}, std::vector<uint32_t>{0}, GetParam());
@@ -552,7 +560,8 @@ TEST_P(StorageTypeGraphTest, NodeSparseFeaturesMixedDimensions)
     f2.emplace_back(start, start + f2_2_data.size());
     m.m_nodes.push_back(TestGraph::Node{.m_id = 0, .m_type = 0, .m_weight = 1.0f, .m_float_features = f1});
     m.m_nodes.push_back(TestGraph::Node{.m_id = 1, .m_type = 1, .m_weight = 1.0f, .m_float_features = f2});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m), 2);
     snark::Metadata metadata(path.string());
     snark::Graph g(std::move(metadata), {path.string()}, std::vector<uint32_t>{0}, GetParam());
@@ -583,7 +592,8 @@ TEST_P(StorageTypeGraphTest, NodeSparseFeaturesMissingFeature)
     std::vector<std::vector<float>> f1 = {std::vector<float>(start, start + feature_data.size())};
     m.m_nodes.push_back(TestGraph::Node{.m_id = 0, .m_type = 0, .m_weight = 1.0f, .m_float_features = f1});
     m.m_nodes.push_back(TestGraph::Node{.m_id = 1, .m_type = 1, .m_weight = 1.0f});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m), 2);
     snark::Metadata metadata(path.string());
     snark::Graph g(std::move(metadata), {path.string()}, std::vector<uint32_t>{0}, GetParam());
@@ -619,7 +629,8 @@ TEST_P(StorageTypeGraphTest, NodeSparseFeaturesDimensionsFill)
     TestGraph::MemoryGraph m;
     m.m_nodes.push_back(TestGraph::Node{
         .m_id = snark::NodeId(13979298), .m_type = 0, .m_weight = 1.0f, .m_float_features = std::move(input_features)});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     auto partition = TestGraph::convert(path, "0_0", std::move(m), 1);
     snark::Metadata metadata(path.string());
     snark::Graph g(std::move(metadata), {path.string()}, std::vector<uint32_t>{0}, GetParam());
@@ -689,7 +700,8 @@ TEST_P(StorageTypeGraphTest, NodeStringFeaturesMultipleNodesSingleFeature)
     m.m_nodes.push_back(TestGraph::Node{.m_id = 0, .m_type = 0, .m_weight = 1.0f, .m_float_features = f1});
     m.m_nodes.push_back(TestGraph::Node{.m_id = 1, .m_type = 1, .m_weight = 1.0f});
     m.m_nodes.push_back(TestGraph::Node{.m_id = 2, .m_type = 1, .m_weight = 1.0f, .m_float_features = f2});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m), 2);
     snark::Metadata metadata(path.string());
     snark::Graph g(std::move(metadata), {path.string()}, std::vector<uint32_t>{0}, GetParam());
@@ -725,7 +737,8 @@ TEST_P(StorageTypeGraphTest, NodeStringFeaturesWithDifferentTimestampsOnSeparate
     m3.m_nodes.push_back(TestGraph::Node{.m_id = 0, .m_type = 1, .m_weight = 1.0f, .m_float_features = f2});
     m3.m_nodes.push_back(TestGraph::Node{.m_id = 1, .m_type = 1, .m_weight = 1.0f});
 
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m1), 2);
     TestGraph::convert(path, "1_0", std::move(m2), 2);
     TestGraph::convert(path, "2_0", std::move(m3), 2);
@@ -750,7 +763,8 @@ TEST_P(StorageTypeGraphTest, NeighborSamplesWithSingleNodeNoNeighbors)
     TestGraph::MemoryGraph m;
     m.m_nodes.push_back(TestGraph::Node{.m_id = 0, .m_type = 0, .m_weight = 1.0f});
     m.m_nodes.push_back(TestGraph::Node{.m_id = 1, .m_type = 1, .m_weight = 1.0f});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m), 2);
     snark::Metadata metadata(path.string());
     snark::Graph g(std::move(metadata), {path.string()}, std::vector<uint32_t>{0}, GetParam());
@@ -784,7 +798,8 @@ TEST(GraphTest, NeighborSampleSimple)
         .m_weight = 1.0f,
         .m_neighbors{std::vector<TestGraph::NeighborRecord>{{5, 0, 1.0f}, {6, 0, 1.0f}, {7, 0, 1.0f}, {8, 0, 1.0f}}}});
 
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m), 2);
     snark::Metadata metadata(path.string());
     snark::Graph g(std::move(metadata), {path.string()}, {0}, snark::PartitionStorageType::memory);
@@ -818,7 +833,8 @@ TEST_P(StorageTypeGraphTest, NeighborSampleMultipleTypesSinglePartition)
         .m_type = 1,
         .m_weight = 1.0f,
         .m_neighbors{std::vector<TestGraph::NeighborRecord>{{6, 0, 1.0f}, {7, 0, 1.0f}, {8, 0, 1.0f}}}});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m), 2);
     snark::Metadata metadata(path.string());
     snark::Graph g(std::move(metadata), {path.string()}, std::vector<uint32_t>{0}, GetParam());
@@ -855,7 +871,9 @@ TEST(GraphTest, NeighborSampleMultipleTypesMultiplePartitions)
         .m_type = -1,
         .m_weight = 1.0f,
         .m_neighbors{std::vector<TestGraph::NeighborRecord>{{3, 0, 1.0f}, {4, 0, 3.0f}, {5, 1, 0.5f}, {6, 1, 2.0f}}}});
-    auto path = std::filesystem::temp_directory_path();
+    auto path =
+        std::filesystem::path(std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + "_tst");
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m1), 3);
     TestGraph::convert(path, "1_0", std::move(m2), 3);
     snark::Metadata metadata(path.string());
@@ -892,7 +910,8 @@ TEST(GraphTest, NeighborSampleMultipleTypesNeighborsSpreadAcrossPartitions)
     TestGraph::MemoryGraph m2;
     m2.m_nodes.push_back(TestGraph::Node{
         .m_id = 1, .m_type = 1, .m_neighbors{std::vector<TestGraph::NeighborRecord>{{6, 1, 1.5f}, {7, 1, 3.0f}}}});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
 
     TestGraph::convert(path, "0_0", std::move(m1), 2);
     TestGraph::convert(path, "1_0", std::move(m2), 2);
@@ -931,7 +950,8 @@ TEST(GraphTest, StatisticalNeighborSampleMultipleTypesNeighborsSpreadAcrossParti
     TestGraph::MemoryGraph m2;
     m2.m_nodes.push_back(TestGraph::Node{
         .m_id = 1, .m_type = -1, .m_neighbors{std::vector<TestGraph::NeighborRecord>{{6, 1, 1.0f}, {7, 1, 1.0f}}}});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m1), 2);
     TestGraph::convert(path, "1_0", std::move(m2), 2);
     snark::Metadata metadata(path.string());
@@ -980,7 +1000,8 @@ TEST(GraphTest, UniformNeighborSampleMultipleTypesNeighborsSpreadAcrossPartition
     TestGraph::MemoryGraph m2;
     m2.m_nodes.push_back(TestGraph::Node{
         .m_id = 1, .m_type = -1, .m_neighbors{std::vector<TestGraph::NeighborRecord>{{6, 1, 1.5f}, {7, 1, 3.0f}}}});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m1), 2);
     TestGraph::convert(path, "1_0", std::move(m2), 2);
     snark::Metadata metadata(path.string());
@@ -1021,7 +1042,8 @@ TEST(GraphTest, NodeTypesMultipleTypesNeighborsSpreadAcrossPartitions)
         .m_id = 1, .m_type = -1, .m_neighbors{std::vector<TestGraph::NeighborRecord>{{6, 1, 1.5f}, {7, 1, 3.0f}}}});
     m2.m_nodes.push_back(TestGraph::Node{
         .m_id = 2, .m_type = 2, .m_neighbors{std::vector<TestGraph::NeighborRecord>{{6, 1, 1.5f}, {7, 1, 3.0f}}}});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
 
     TestGraph::convert(path, "0_0", std::move(m1), 3);
     TestGraph::convert(path, "1_0", std::move(m2), 3);
@@ -1048,7 +1070,8 @@ TEST(GraphTest, NodeFeaturesMultipleTypesNeighborsSpreadAcrossPartitions)
     TestGraph::MemoryGraph m2;
     m2.m_nodes.push_back(TestGraph::Node{.m_id = 1, .m_type = -1});
     m2.m_nodes.push_back(TestGraph::Node{.m_id = 2, .m_type = 2, .m_float_features = f2});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
 
     TestGraph::convert(path, "0_0", std::move(m1), 3);
     TestGraph::convert(path, "1_0", std::move(m2), 3);
@@ -1081,7 +1104,8 @@ TEST(GraphTest, NodeStringFeaturesMultipleTypesNeighborsSpreadAcrossPartitions)
     TestGraph::MemoryGraph m2;
     m2.m_nodes.push_back(TestGraph::Node{.m_id = 1, .m_type = -1});
     m2.m_nodes.push_back(TestGraph::Node{.m_id = 2, .m_type = 2, .m_float_features = f2});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
 
     TestGraph::convert(path, "0_0", std::move(m1), 3);
     TestGraph::convert(path, "1_0", std::move(m2), 3);
@@ -1123,7 +1147,8 @@ TEST(GraphTest, NodeSparseFeaturesMultipleTypesNeighborsSpreadAcrossPartitions)
     TestGraph::MemoryGraph m2;
     m2.m_nodes.push_back(TestGraph::Node{.m_id = 1, .m_type = -1});
     m2.m_nodes.push_back(TestGraph::Node{.m_id = 2, .m_type = 2, .m_weight = 1.0f, .m_float_features = f2});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
 
     TestGraph::convert(path, "0_0", std::move(m1), 3);
     TestGraph::convert(path, "1_0", std::move(m2), 3);
@@ -1179,7 +1204,8 @@ TEST(GraphTest, NodeSparseFeaturesMultipleTimestampsSpreadAcrossPartitions)
     m2.m_nodes.push_back(TestGraph::Node{.m_id = 1, .m_type = 1});
     m2.m_nodes.push_back(TestGraph::Node{.m_id = 2, .m_type = 2, .m_weight = 1.0f, .m_float_features = f2});
     m2.m_nodes.push_back(TestGraph::Node{.m_id = 3, .m_type = 2, .m_weight = 1.0f, .m_float_features = f3});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
 
     TestGraph::convert(path, "0_0", std::move(m1), 3);
     TestGraph::convert(path, "1_0", std::move(m2), 3);
@@ -1226,7 +1252,8 @@ TEST(GraphTest, UniformNeighborSampleMultipleTypesTriggerConditionalProbabilitie
         .m_type = 0,
         .m_weight = 1.0f,
         .m_neighbors{std::vector<TestGraph::NeighborRecord>{{3, 0, 1.0f}, {4, 0, 1.0f}, {5, 1, 1.0f}}}});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m1), 1);
     snark::Metadata metadata(path.string());
     snark::Graph g(std::move(metadata), {path.string()}, {0}, snark::PartitionStorageType::memory);
@@ -1261,7 +1288,8 @@ TEST(GraphTest, StatisticalUniformNeighborSampleSingleTypeNeighborSpreadAcrossPa
         .m_id = 1,
         .m_type = 1,
         .m_neighbors{std::vector<TestGraph::NeighborRecord>{{6, 1, 1.0f}, {7, 1, 1.0f}, {8, 1, 1.0f}}}});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m1), 2);
     TestGraph::convert(path, "1_0", std::move(m2), 2);
     snark::Metadata metadata(path.string());
@@ -1324,7 +1352,8 @@ TEST(GraphTest, StatisticalUniformNeighborSampleMultipleTypesNeighborsSpreadAcro
         .m_id = 1,
         .m_type = 1,
         .m_neighbors{std::vector<TestGraph::NeighborRecord>{{7, 1, 1.0f}, {8, 1, 1.0f}, {9, 1, 1.0f}}}});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m1), 2);
     TestGraph::convert(path, "1_0", std::move(m2), 2);
     snark::Metadata metadata(path.string());
@@ -1384,7 +1413,8 @@ TEST(GraphTest, GetNeighborsMultipleTypesNeighborsSpreadAcrossPartitions)
     TestGraph::MemoryGraph m2;
     m2.m_nodes.push_back(TestGraph::Node{
         .m_id = 1, .m_type = 1, .m_neighbors{std::vector<TestGraph::NeighborRecord>{{6, 1, 1.5f}, {7, 1, 3.0f}}}});
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m1), 2);
     TestGraph::convert(path, "1_0", std::move(m2), 2);
     snark::Metadata metadata(path.string());
@@ -1416,7 +1446,8 @@ TEST(GraphTest, GetNodeTypesAcrossPartitions)
     {
         m2.m_nodes.push_back(TestGraph::Node{.m_id = id, .m_type = int32_t(id % 3)});
     }
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m1), 3);
     TestGraph::convert(path, "1_0", std::move(m2), 3);
     snark::Metadata metadata(path.string());
@@ -1468,7 +1499,8 @@ TEST(GraphTest, GetNeigborCountSinglePartition)
         .m_neighbors{std::vector<TestGraph::NeighborRecord>{{3, 0, 1.0f}, {4, 0, 1.0f}, {5, 1, 1.0f}}}});
 
     // Initialize graph
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m1), 2);
     snark::Metadata metadata(path.string());
     snark::Graph g(std::move(metadata), {path.string()}, {0}, snark::PartitionStorageType::memory);
@@ -1565,7 +1597,8 @@ TEST(GraphTest, GetNeigborCountMultiplePartitions)
         .m_id = 1, .m_type = 1, .m_neighbors{std::vector<TestGraph::NeighborRecord>{{6, 1, 1.5f}, {7, 1, 3.0f}}}});
 
     // Initialize Graph
-    auto path = std::filesystem::temp_directory_path();
+    auto path = std::filesystem::path(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    assert(std::filesystem::create_directories(path));
     TestGraph::convert(path, "0_0", std::move(m1), 2);
     TestGraph::convert(path, "1_0", std::move(m2), 2);
     snark::Metadata metadata(path.string());

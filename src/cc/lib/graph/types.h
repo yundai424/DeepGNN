@@ -3,6 +3,7 @@
 
 #ifndef SNARK_TYPES_H
 #define SNARK_TYPES_H
+#include <cstdint>
 #include <cstdlib>
 #include <utility>
 

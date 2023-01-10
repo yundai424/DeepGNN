@@ -4,7 +4,9 @@
 #ifndef SNARK_METADATA_H
 #define SNARK_METADATA_H
 
+#include "types.h"
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -12,6 +14,7 @@ namespace snark
 {
 
 const size_t MINIMUM_SUPPORTED_VERSION = 1;
+const size_t TEMPORAL_FEATURE_VERSION = 2;
 
 struct Metadata
 {
@@ -37,6 +40,7 @@ struct Metadata
     std::vector<std::vector<float>> m_partition_edge_weights;
     std::vector<size_t> m_node_count_per_type;
     std::vector<size_t> m_edge_count_per_type;
+    std::optional<snark::Timestamp> m_watermark;
 };
 } // namespace snark
 

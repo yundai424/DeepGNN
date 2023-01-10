@@ -9,12 +9,13 @@
 #include <filesystem>
 #include <glog/logging.h>
 #include <glog/raw_logging.h>
+#include <iostream>
 
 namespace snark
 {
 
 Metadata::Metadata(std::filesystem::path path, std::string config_path)
-    : m_path(path.string()), m_config_path(config_path)
+    : m_version(TEMPORAL_FEATURE_VERSION), m_path(path.string()), m_config_path(config_path), m_watermark(std::nullopt)
 {
     if (is_hdfs_path(path))
 #ifndef SNARK_PLATFORM_LINUX
@@ -131,6 +132,18 @@ Metadata::Metadata(std::filesystem::path path, std::string config_path)
         }
         m_edge_count_per_type[i] = count;
     }
+    if (m_version >= TEMPORAL_FEATURE_VERSION)
+    {
+        int64_t watermark;
+        if (fscanf(meta, "%ld\n", &watermark) <= 0)
+        {
+            exit(errno);
+        }
+        if (watermark >= 0)
+        {
+            m_watermark = watermark;
+        }
+    }
     fclose(meta);
 }
 
@@ -206,6 +219,11 @@ void Metadata::Write(std::filesystem::path path) const
             exit(errno);
         }
     }
+    if (fprintf(meta, "%ld\n", m_watermark.value()) <= 0)
+    {
+        exit(errno);
+    }
+
     fclose(meta);
 }
 

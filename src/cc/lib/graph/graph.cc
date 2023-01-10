@@ -393,6 +393,7 @@ void Graph::FullNeighbor(std::span<const NodeId> input_node_ids, std::span<const
                          std::vector<Type> &output_neighbor_types, std::vector<float> &output_neighbors_weights,
                          std::span<uint64_t> output_neighbors_counts) const
 {
+    std::fill(std::begin(output_neighbors_counts), std::end(output_neighbors_counts), 0);
     for (size_t node_index = 0; node_index < input_node_ids.size(); ++node_index)
     {
         auto internal_id = m_node_map.find(input_node_ids[node_index]);

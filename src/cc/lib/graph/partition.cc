@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstring>
 #include <limits>
+#include <span>
 #include <string>
 
 #include "boost/random/binomial_distribution.hpp"
@@ -24,6 +25,93 @@ struct EdgeRecord
     uint64_t m_feature_offset;
     Type m_type;
     float m_weight;
+};
+
+using TimestampList = std::span<std::pair<Timestamp, Timestamp>>;
+struct TimestampIterator
+{
+    using iterator_category = std::forward_iterator_tag;
+    using difference_type = std::ptrdiff_t;
+    using value_type = size_t;
+    using pointer = size_t *;   // or also value_type*
+    using reference = size_t &; // or also value_type&
+    TimestampIterator(TimestampIterator &&other) = default;
+    TimestampIterator(const TimestampIterator &other) = default;
+
+    TimestampIterator(const TimestampList &l, Timestamp t) : m_l(l), m_t(t)
+    {
+        find();
+    }
+
+    reference operator*()
+    {
+        return m_position;
+    }
+    pointer operator->()
+    {
+        return &m_position;
+    }
+
+    // Prefix increment
+    TimestampIterator &operator++()
+    {
+        if (m_position == m_end)
+        {
+            return *this;
+        }
+
+        if (m_position + 1 != m_end)
+        {
+            m_position++;
+            return *this;
+        }
+
+        m_position++;
+        find();
+        return *this;
+    }
+
+    // Postfix increment
+    TimestampIterator operator++(int)
+    {
+        TimestampIterator tmp = *this;
+        ++(*this);
+        return tmp;
+    }
+
+    friend bool operator==(const TimestampIterator &a, const TimestampIterator &b)
+    {
+        return a.m_position == b.m_position;
+    };
+    friend bool operator!=(const TimestampIterator &a, const TimestampIterator &b)
+    {
+        return a.m_position != b.m_position;
+    };
+
+  private:
+    // find the position of the first element
+    void find()
+    {
+        auto first =
+            std::lower_bound(std::begin(m_l) + m_position, std::end(m_l), m_t,
+                             [](const auto &left, const auto &tgt) { return left.second != -1 && left.second <= tgt; });
+        auto start_time = first->first;
+        if (start_time > m_t)
+        {
+            m_position = m_l.size();
+            m_end = m_l.size();
+            return;
+        }
+        auto last = std::upper_bound(first, std::end(m_l), start_time,
+                                     [](const auto &tgt, const auto &left) { return left.first > tgt; });
+        m_position = size_t(first - std::begin(m_l));
+        m_end = size_t(last - std::begin(m_l));
+    }
+
+    const TimestampList &m_l;
+    const Timestamp m_t;
+    size_t m_position;
+    size_t m_end;
 };
 
 // Temporal features encoded in a following way:
@@ -175,6 +263,11 @@ void Partition::ReadEdges(std::filesystem::path path, std::string suffix)
 {
     ReadNeighborsIndex(path, suffix);
     ReadEdgeIndex(path, suffix);
+    if (m_metadata.m_watermark.has_value())
+    {
+        ReadEdgeTimestamps(path, suffix);
+    }
+
     if (m_metadata.m_edge_feature_count > 0)
     {
         ReadEdgeFeaturesIndex(path, suffix);
@@ -205,6 +298,46 @@ void Partition::ReadNeighborsIndex(std::filesystem::path path, std::string suffi
     if (size_64 != neighbors_index->read(m_neighbors_index.data(), 8, size_64, neighbors_index_ptr))
     {
         RAW_LOG_FATAL("Failed to read neighbor index file");
+    }
+}
+
+void Partition::ReadEdgeTimestamps(std::filesystem::path path, std::string suffix)
+{
+    std::shared_ptr<BaseStorage<uint8_t>> edge_timestamps;
+    if (!is_hdfs_path(path))
+    {
+        edge_timestamps =
+            std::make_shared<DiskStorage<uint8_t>>(std::move(path), std::move(suffix), open_edge_timestamps);
+    }
+    else
+    {
+        auto full_path = path / ("edge_" + suffix + ".timestamp");
+        edge_timestamps = std::make_shared<HDFSStreamStorage<uint8_t>>(full_path.c_str(), m_metadata.m_config_path);
+    }
+    auto edge_timestamps_ptr = edge_timestamps->start();
+    size_t size_64 = edge_timestamps->size() / 8;
+    if (size_64 == 0)
+    {
+        return;
+    }
+    size_64--;
+    m_edge_timestamps.resize(size_64 / 2);
+    assert(m_edge_timestamps.size() + 1 ==
+           m_edge_destination.size()); // destination is padded with an extra value for faster search.
+    if (1 != edge_timestamps->read(&m_watermark, 8, 1, edge_timestamps_ptr))
+    {
+        RAW_LOG_FATAL("Failed to read watermark from edge timestamps file");
+    }
+    for (auto &ts : m_edge_timestamps)
+    {
+        if (1 != edge_timestamps->read(&ts.first, 8, 1, edge_timestamps_ptr))
+        {
+            RAW_LOG_FATAL("Failed to read edge timestamps file");
+        }
+        if (1 != edge_timestamps->read(&ts.second, 8, 1, edge_timestamps_ptr))
+        {
+            RAW_LOG_FATAL("Failed to read edge timestamps file");
+        }
     }
 }
 
@@ -646,8 +779,25 @@ size_t NeighborIndexIterator(uint64_t internal_id, std::optional<Timestamp> node
 size_t Partition::NeighborCount(uint64_t internal_id, std::optional<Timestamp> node_ts,
                                 std::span<const Type> edge_types) const
 {
-    auto lambda = [](const auto start, const auto last, const auto i) {};
+    if (node_ts)
+    {
+        size_t count = 0;
+        auto lambda = [&count, node_ts = node_ts.value(), &ts = m_edge_timestamps](const auto start, const auto last,
+                                                                                   const auto i) {
+            for (size_t curr_ts = start; curr_ts < last; ++curr_ts)
+            {
+                if (ts[curr_ts].first <= node_ts && (ts[curr_ts].second > node_ts || ts[curr_ts].second == -1))
+                {
+                    ++count;
+                }
+            }
+        };
+        NeighborIndexIterator(internal_id, std::move(node_ts), edge_types, std::move(lambda), m_neighbors_index,
+                              m_edge_types, m_edge_type_offset);
+        return count;
+    }
 
+    auto lambda = [](const auto start, const auto last, const auto i) {};
     return NeighborIndexIterator(internal_id, std::move(node_ts), edge_types, std::move(lambda), m_neighbors_index,
                                  m_edge_types, m_edge_type_offset);
 }
@@ -656,6 +806,29 @@ size_t Partition::FullNeighbor(uint64_t internal_id, std::optional<Timestamp> no
                                std::vector<NodeId> &out_neighbors_ids, std::vector<Type> &out_edge_types,
                                std::vector<float> &out_edge_weights) const
 {
+    if (node_ts)
+    {
+        size_t count = 0;
+        auto lambda = [&count, node_ts = node_ts.value(), &ts = m_edge_timestamps, &out_neighbors_ids, &out_edge_types,
+                       &out_edge_weights, this](const auto start, const auto last, const auto i) {
+            for (size_t curr_ts = start; curr_ts < last; ++curr_ts)
+            {
+                if (ts[curr_ts].first <= node_ts && (ts[curr_ts].second > node_ts || ts[curr_ts].second == -1))
+                {
+                    out_neighbors_ids.emplace_back(m_edge_destination[curr_ts]);
+                    out_edge_weights.emplace_back(curr_ts > start
+                                                      ? m_edge_weights[curr_ts] - m_edge_weights[curr_ts - 1]
+                                                      : m_edge_weights[start]);
+                    out_edge_types.emplace_back(m_edge_types[i]);
+                    ++count;
+                }
+            }
+        };
+        NeighborIndexIterator(internal_id, std::move(node_ts), edge_types, std::move(lambda), m_neighbors_index,
+                              m_edge_types, m_edge_type_offset);
+        return count;
+    }
+
     auto lambda = [&out_neighbors_ids, &out_edge_types, &out_edge_weights, this](auto start, auto last, int i) {
         // m_edge_destination[last-1]+1 - take the last element and then advance the pointer
         // to imitate std::end, otherwise we'll have an out of range exception.
@@ -875,6 +1048,38 @@ void Partition::GetEdgeStringFeature(uint64_t internal_src_node_id, NodeId input
     }
 }
 
+namespace
+{
+auto find_start(const std::span<const std::pair<Timestamp, Timestamp>> &range, Timestamp ts)
+{
+    if (range.empty())
+    {
+        return std::end(range);
+    }
+
+    auto val = std::max(range.front().second, ts);
+    auto it =
+        std::lower_bound(std::begin(range), std::end(range), val, [](const std::pair<Timestamp, Timestamp> &a, int x) {
+            return a.second != -1 && a.second <= x;
+        });
+
+    return it;
+}
+
+auto find_last(const std::span<const std::pair<Timestamp, Timestamp>> &range, int ts)
+{
+    if (range.front().first > ts)
+    {
+        return std::begin(range);
+    }
+    int last = range.front().second;
+    auto it = std::upper_bound(
+        std::begin(range), std::end(range), ts,
+        [last](int ts, const std::pair<Timestamp, Timestamp> &a) { return a.second != last || a.first >= ts; });
+    return it;
+}
+} // anonymous namespace
+
 void Partition::SampleNeighbor(int64_t seed, uint64_t internal_node_id, std::optional<Timestamp> node_ts,
                                std::span<const Type> in_edge_types, uint64_t count, std::span<NodeId> out_nodes,
                                std::span<Type> out_types, std::span<float> out_weights, float &out_partition,
@@ -922,8 +1127,36 @@ void Partition::SampleNeighbor(int64_t seed, uint64_t internal_node_id, std::opt
         }
         if (m_edge_types[i] == in_edge_types[curr_type])
         {
-            auto last = m_edge_type_offset[i + 1] - 1;
-            total_weight += m_edge_weights[last];
+            auto lst = m_edge_type_offset[i + 1] - 1;
+            if (!node_ts.has_value())
+            {
+                total_weight += m_edge_weights[lst];
+                continue;
+            }
+            ++lst;
+            const auto fst = m_edge_type_offset[i];
+            auto timestamp_span = std::span(m_edge_timestamps).subspan(fst, lst - fst);
+            auto start_dist = fst;
+            for (auto it = find_start(timestamp_span, node_ts.value()); it != std::end(timestamp_span);
+                 it = find_start(timestamp_span, node_ts.value()))
+            {
+                auto last = find_last(std::span(it, std::end(timestamp_span)), node_ts.value());
+
+                const auto end_dist = size_t(last - std::begin(timestamp_span)) + start_dist;
+                // TODO(check seesaw pattern in weights)
+                total_weight += m_edge_weights[end_dist];
+                if (start_dist != 0)
+                {
+                    total_weight -= m_edge_weights[start_dist - 1 + (it - std::begin(timestamp_span))];
+                }
+
+                if (last - it > 0)
+                {
+                    last--;
+                }
+                start_dist += size_t(last - it);
+                timestamp_span = std::span(last, std::end(timestamp_span));
+            }
         }
     }
 
@@ -966,34 +1199,86 @@ void Partition::SampleNeighbor(int64_t seed, uint64_t internal_node_id, std::opt
         }
         if (m_edge_types[i] == in_edge_types[curr_type])
         {
-            const auto first = m_edge_type_offset[i];
-            const auto last = m_edge_type_offset[i + 1] - 1;
-            const auto type_weight = m_edge_weights[last];
-
-            boost::random::binomial_distribution<int32_t> d(left_over_neighbors, type_weight / total_weight);
-            size_t type_count = type_weight == total_weight ? left_over_neighbors : d(gen);
-            total_weight -= type_weight;
-            for (size_t j = 0; j < type_count; ++j)
+            auto first = m_edge_type_offset[i];
+            auto last = m_edge_type_offset[i + 1] - 1;
+            if (node_ts.has_value())
             {
-                if (overwrite_rate < 1.0f && real(gen) > overwrite_rate)
+                auto timestamp_span = std::span(m_edge_timestamps).subspan(first, last - first);
+                auto start_dist = first;
+                for (auto it = find_start(timestamp_span, node_ts.value()); it != std::end(timestamp_span);
+                     it = find_start(timestamp_span, node_ts.value()))
                 {
-                    continue;
-                }
+                    auto lst = find_last(std::span(it, std::end(timestamp_span)), node_ts.value());
 
-                float rnd = type_weight * real(gen);
-                auto fst_nb = std::begin(m_edge_weights) + first;
-                auto lst_nb =
-                    m_edge_weights.size() == last ? std::end(m_edge_weights) : std::begin(m_edge_weights) + last + 1;
-                auto nb_pos = std::lower_bound(fst_nb, lst_nb, rnd);
-                size_t nb_offset = std::distance(fst_nb, nb_pos);
-                out_nodes[pos] = m_edge_destination[first + nb_offset];
-                out_types[pos] = m_edge_types[i];
-                out_weights[pos] = nb_offset == 0
-                                       ? m_edge_weights[first]
-                                       : m_edge_weights[first + nb_offset] - m_edge_weights[first + nb_offset - 1];
-                ++pos;
+                    const auto end_dist = size_t(lst - std::begin(timestamp_span)) + start_dist;
+                    // TODO(check seesaw pattern in weights)
+                    auto type_weight = m_edge_weights[end_dist];
+                    if (start_dist != 0)
+                    {
+                        type_weight -= m_edge_weights[start_dist - 1 + (it - std::begin(timestamp_span))];
+                    }
+
+                    boost::random::binomial_distribution<int32_t> d(left_over_neighbors, type_weight / total_weight);
+                    size_t type_count = type_weight == total_weight ? left_over_neighbors : d(gen);
+                    total_weight -= type_weight;
+                    for (size_t j = 0; j < type_count; ++j)
+                    {
+                        if (overwrite_rate < 1.0f && real(gen) > overwrite_rate)
+                        {
+                            continue;
+                        }
+
+                        float rnd = type_weight * real(gen);
+                        auto fst_nb = std::begin(m_edge_weights) + first;
+                        auto lst_nb = m_edge_weights.size() == last ? std::end(m_edge_weights)
+                                                                    : std::begin(m_edge_weights) + last + 1;
+                        auto nb_pos = std::lower_bound(fst_nb, lst_nb, rnd);
+                        size_t nb_offset = std::distance(fst_nb, nb_pos);
+                        out_nodes[pos] = m_edge_destination[first + nb_offset];
+                        out_types[pos] = m_edge_types[i];
+                        out_weights[pos] =
+                            nb_offset == 0 ? m_edge_weights[first]
+                                           : m_edge_weights[first + nb_offset] - m_edge_weights[first + nb_offset - 1];
+                        ++pos;
+                    }
+                    left_over_neighbors -= type_count;
+
+                    if (lst - it > 0)
+                    {
+                        lst--;
+                    }
+                    start_dist += size_t(lst - it);
+                    timestamp_span = std::span(lst, std::end(timestamp_span));
+                }
             }
-            left_over_neighbors -= type_count;
+            else
+            {
+                auto type_weight = m_edge_weights[last];
+                boost::random::binomial_distribution<int32_t> d(left_over_neighbors, type_weight / total_weight);
+                size_t type_count = type_weight == total_weight ? left_over_neighbors : d(gen);
+                total_weight -= type_weight;
+                for (size_t j = 0; j < type_count; ++j)
+                {
+                    if (overwrite_rate < 1.0f && real(gen) > overwrite_rate)
+                    {
+                        continue;
+                    }
+
+                    float rnd = type_weight * real(gen);
+                    auto fst_nb = std::begin(m_edge_weights) + first;
+                    auto lst_nb = m_edge_weights.size() == last ? std::end(m_edge_weights)
+                                                                : std::begin(m_edge_weights) + last + 1;
+                    auto nb_pos = std::lower_bound(fst_nb, lst_nb, rnd);
+                    size_t nb_offset = std::distance(fst_nb, nb_pos);
+                    out_nodes[pos] = m_edge_destination[first + nb_offset];
+                    out_types[pos] = m_edge_types[i];
+                    out_weights[pos] = nb_offset == 0
+                                           ? m_edge_weights[first]
+                                           : m_edge_weights[first + nb_offset] - m_edge_weights[first + nb_offset - 1];
+                    ++pos;
+                }
+                left_over_neighbors -= type_count;
+            }
         }
     }
 }
