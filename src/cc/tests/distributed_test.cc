@@ -41,13 +41,9 @@ struct TempFolder
 
     explicit TempFolder(std::string name) : path(std::filesystem::temp_directory_path() / std::move(name))
     {
-        if (std::filesystem::exists(path))
-        {
-            std::filesystem::remove_all(path);
-        }
         if (!std::filesystem::create_directory(path))
         {
-            throw std::logic_error("Failed to create path" + path.string());
+            throw std::logic_error("Failed to create path: " + path.string());
         }
 
         last = true;
@@ -98,7 +94,7 @@ TEST(DistributedTest, NodeFeaturesSingleServer)
     std::vector<snark::NodeId> input_nodes = {0, 1, 2};
     std::vector<float> output(fv_size * input_nodes.size());
     std::vector<snark::FeatureMeta> features = {{snark::FeatureId(0), snark::FeatureSize(sizeof(float) * fv_size)}};
-    c.GetNodeFeature(std::span(input_nodes), std::span(features),
+    c.GetNodeFeature(std::span(input_nodes), {}, std::span(features),
                      std::span(reinterpret_cast<uint8_t *>(output.data()), sizeof(float) * output.size()));
     EXPECT_EQ(output, std::vector<float>({0, 1, 1, 2, 2, 3}));
 }
@@ -151,7 +147,7 @@ TEST(DistributedTest, NodeStringFeaturesMultipleServers)
     std::vector<snark::FeatureId> features = {1, 0};
     std::vector<uint8_t> values;
     std::vector<int64_t> dimensions(input_nodes.size() * features.size());
-    c.GetNodeStringFeature(std::span(input_nodes), std::span(features), std::span(dimensions), values);
+    c.GetNodeStringFeature(std::span(input_nodes), {}, std::span(features), std::span(dimensions), values);
     std::span res(reinterpret_cast<float *>(values.data()), values.size() / 4);
     EXPECT_EQ(std::vector<float>(std::begin(res), std::end(res)),
               std::vector<float>({2, 1, 2, 3, 5, 4, 5, 6, 7, 8, 9, 1, 0, 1}));
@@ -199,7 +195,7 @@ TEST(DistributedTest, NodeSparseFeaturesMultipleServers)
     std::vector<std::vector<uint8_t>> values(features.size());
     std::vector<std::vector<int64_t>> indices(features.size());
     std::vector<int64_t> dimensions(features.size());
-    c.GetNodeSparseFeature(std::span(input_nodes), std::span(features), std::span(dimensions), indices, values);
+    c.GetNodeSparseFeature(std::span(input_nodes), {}, std::span(features), std::span(dimensions), indices, values);
     std::span res(reinterpret_cast<int32_t *>(values[1].data()), values[1].size() / 4);
     EXPECT_EQ(std::vector<int32_t>(std::begin(res), std::end(res)), std::vector<int32_t>({1}));
     EXPECT_EQ(dimensions, std::vector<int64_t>({0, 3}));
@@ -242,7 +238,7 @@ TEST(DistributedTest, NodeSparseFeaturesSingleServerMissingFeatures)
     std::vector<std::vector<uint8_t>> data(features.size());
     std::vector<std::vector<int64_t>> indices(features.size());
     std::vector<int64_t> dimensions = {-1};
-    c.GetNodeSparseFeature(std::span(nodes), std::span(features), std::span(dimensions), indices, data);
+    c.GetNodeSparseFeature(std::span(nodes), {}, std::span(features), std::span(dimensions), indices, data);
     EXPECT_EQ(std::vector<int64_t>({0, 0}), indices[0]);
     EXPECT_EQ(std::vector<int64_t>({1}), dimensions);
     auto tmp = reinterpret_cast<float *>(data[0].data());
@@ -253,7 +249,7 @@ TEST(DistributedTest, NodeSparseFeaturesSingleServerMissingFeatures)
     data = {{}, {}};
     indices = {{}, {}};
     dimensions = {-1, -1};
-    c.GetNodeSparseFeature(std::span(nodes), std::span(features), std::span(dimensions), indices, data);
+    c.GetNodeSparseFeature(std::span(nodes), {}, std::span(features), std::span(dimensions), indices, data);
     EXPECT_EQ(std::vector<int64_t>({}), indices[0]);
     EXPECT_EQ(std::vector<int64_t>({0, 0}), indices[1]);
     EXPECT_EQ(std::vector<int64_t>({0, 1}), dimensions);
@@ -264,7 +260,7 @@ TEST(DistributedTest, NodeSparseFeaturesSingleServerMissingFeatures)
     data = {{}, {}, {}, {}};
     indices = {{}, {}, {}, {}};
     dimensions = {-1, -1, -1, -1};
-    c.GetNodeSparseFeature(std::span(nodes), std::span(features), std::span(dimensions), indices, data);
+    c.GetNodeSparseFeature(std::span(nodes), {}, std::span(features), std::span(dimensions), indices, data);
     EXPECT_EQ(std::vector<int64_t>({}), indices[0]);
     EXPECT_EQ(std::vector<int64_t>({}), indices[1]);
     EXPECT_EQ(std::vector<int64_t>({0, 17416}), indices[2]);
@@ -281,7 +277,7 @@ TEST(DistributedTest, NodeSparseFeaturesSingleServerMissingFeatures)
     data = {{}, {}};
     indices = {{}, {}};
     dimensions = {-1, -1};
-    c.GetNodeSparseFeature(std::span(nodes), std::span(features), std::span(dimensions), indices, data);
+    c.GetNodeSparseFeature(std::span(nodes), {}, std::span(features), std::span(dimensions), indices, data);
     EXPECT_EQ(std::vector<int64_t>({0, 17416}), indices[0]);
     EXPECT_EQ(std::vector<int64_t>({0, 0}), indices[1]);
     EXPECT_EQ(std::vector<int64_t>({1, 1}), dimensions);
@@ -340,7 +336,7 @@ TEST(DistributedTest, NodeSparseFeaturesMultipleServersMissingFeatures)
     std::vector<std::vector<uint8_t>> data(features.size());
     std::vector<std::vector<int64_t>> indices(features.size());
     std::vector<int64_t> dimensions(features.size(), -1);
-    c.GetNodeSparseFeature(std::span(nodes), std::span(features), std::span(dimensions), indices, data);
+    c.GetNodeSparseFeature(std::span(nodes), {}, std::span(features), std::span(dimensions), indices, data);
     // EXPECT_EQ(std::vector<int64_t>({1, 1, 2, 4}), indices[0]);
     EXPECT_EQ(std::vector<int64_t>({2, 4}), indices[0]);
     EXPECT_EQ(std::vector<int64_t>({0, 3, 3, 1, 7, 7}), indices[1]);
@@ -383,7 +379,7 @@ TEST(DistributedTest, NodeSparseFeaturesServerMixWithEmptyGE)
     std::vector<std::vector<uint8_t>> data(features.size());
     std::vector<std::vector<int64_t>> indices(features.size());
     std::vector<int64_t> dimensions = {-1};
-    c.GetNodeSparseFeature(std::span(nodes), std::span(features), std::span(dimensions), indices, data);
+    c.GetNodeSparseFeature(std::span(nodes), {}, std::span(features), std::span(dimensions), indices, data);
     EXPECT_EQ(std::vector<int64_t>({0, 0}), indices[0]);
     EXPECT_EQ(std::vector<int64_t>({1}), dimensions);
     auto tmp = reinterpret_cast<float *>(data[0].data());
@@ -444,7 +440,7 @@ TEST(DistributedTest, NodeFeaturesMultipleServers)
     std::vector<snark::NodeId> input_nodes = {0, 11, 22};
     std::vector<float> output(fv_size * input_nodes.size());
     std::vector<snark::FeatureMeta> features = {{snark::FeatureId(0), snark::FeatureSize(sizeof(float) * fv_size)}};
-    c.GetNodeFeature(std::span(input_nodes), std::span(features),
+    c.GetNodeFeature(std::span(input_nodes), {}, std::span(features),
                      std::span(reinterpret_cast<uint8_t *>(output.data()), sizeof(float) * output.size()));
     EXPECT_EQ(output, std::vector<float>({0, 1, 11, 12, 22, 23}));
 }
@@ -455,7 +451,7 @@ TEST(DistributedTest, NodeTypeMultipleServers)
     snark::GRPCClient c(std::move(mocks.first), 1, 1);
     std::vector<snark::NodeId> input_nodes = {42, 0, 11, 22, 123};
     std::vector<snark::Type> types(5, -2);
-    c.GetNodeType(std::span(input_nodes), std::span(types), -1);
+    c.GetNodeType(std::span(input_nodes), {}, std::span(types), -1);
     EXPECT_EQ(types, std::vector<snark::Type>({0, 0, 2, 1, -1}));
 }
 
@@ -467,7 +463,7 @@ TEST(DistributedTest, NodeFeaturesMultipleServersMissingFeatureId)
     std::vector<snark::NodeId> input_nodes = {0, 11, 22};
     std::vector<float> output(fv_size * input_nodes.size(), -2);
     std::vector<snark::FeatureMeta> features = {{snark::FeatureId(12), snark::FeatureSize(sizeof(float) * fv_size)}};
-    c.GetNodeFeature(std::span(input_nodes), std::span(features),
+    c.GetNodeFeature(std::span(input_nodes), {}, std::span(features),
                      std::span(reinterpret_cast<uint8_t *>(output.data()), sizeof(float) * output.size()));
     EXPECT_EQ(output, std::vector<float>(fv_size * input_nodes.size(), 0));
 }
@@ -480,7 +476,7 @@ TEST(DistributedTest, NodeFeaturesMultipleServersBackFillLargeRequestFeatureSize
     std::vector<snark::NodeId> input_nodes = {0, 11, 22};
     std::vector<float> output(2 * fv_size * input_nodes.size(), -2);
     std::vector<snark::FeatureMeta> features = {{snark::FeatureId(0), snark::FeatureSize(2 * sizeof(float) * fv_size)}};
-    c.GetNodeFeature(std::span(input_nodes), std::span(features),
+    c.GetNodeFeature(std::span(input_nodes), {}, std::span(features),
                      std::span(reinterpret_cast<uint8_t *>(output.data()), sizeof(float) * output.size()));
     EXPECT_EQ(output, std::vector<float>({0, 1, 0, 0, 11, 12, 0, 0, 22, 23, 0, 0}));
 }
@@ -528,8 +524,9 @@ TEST(DistributedTest, SampleNeighborsSingleServer)
     std::vector<snark::NodeId> output_nodes(nb_count * input_nodes.size());
     std::vector<float> output_weights(nb_count * input_nodes.size());
     std::vector<snark::Type> output_types(nb_count * input_nodes.size(), -1);
-    client.WeightedSampleNeighbor(21, std::span(input_nodes), std::span(input_types), nb_count, std::span(output_nodes),
-                                  std::span(output_types), std::span(output_weights), -1, 0.0f, -1);
+    client.WeightedSampleNeighbor(21, std::span(input_nodes), std::span(input_types), {}, nb_count,
+                                  std::span(output_nodes), std::span(output_types), std::span(output_weights), -1, 0.0f,
+                                  -1);
     EXPECT_EQ(output_types, std::vector<snark::Type>(6, 0));
     EXPECT_EQ(output_nodes, std::vector<snark::NodeId>({3, 3, 3, 4, 5, 5}));
     EXPECT_EQ(output_weights, std::vector<float>({2, 2, 2, 2, 2, 2}));
@@ -544,7 +541,7 @@ TEST(DistributedTest, UniformSampleNeighborsSingleServer)
     const size_t nb_count = 2;
     std::vector<snark::NodeId> output_nodes(nb_count * input_nodes.size());
     std::vector<snark::Type> output_types(nb_count * input_nodes.size(), -1);
-    client.UniformSampleNeighbor(false, 21, std::span(input_nodes), std::span(input_types), nb_count,
+    client.UniformSampleNeighbor(false, 21, std::span(input_nodes), std::span(input_types), {}, nb_count,
                                  std::span(output_nodes), std::span(output_types), -1, -1);
     EXPECT_EQ(output_types, std::vector<snark::Type>({0, 0, 0, 0, 0, 0}));
     EXPECT_EQ(output_nodes, std::vector<snark::NodeId>({3, 3, 3, 5, 5, 6}));
@@ -552,14 +549,14 @@ TEST(DistributedTest, UniformSampleNeighborsSingleServer)
 
 TEST(DistributedTest, UniformSampleNeighborsWithoutReplacementSingleServer)
 {
-    auto env = CreateSingleServerEnvironment("UniformSampleNeighborsSingleServer");
+    auto env = CreateSingleServerEnvironment("UniformSampleNeighborsWithoutReplacementSingleServer");
     auto &client = *env.second;
     std::vector<snark::NodeId> input_nodes = {0, 1, 2};
     std::vector<snark::Type> input_types = {0};
     const size_t nb_count = 2;
     std::vector<snark::NodeId> output_nodes(nb_count * input_nodes.size());
     std::vector<snark::Type> output_types(nb_count * input_nodes.size(), -1);
-    client.UniformSampleNeighbor(true, 21, std::span(input_nodes), std::span(input_types), nb_count,
+    client.UniformSampleNeighbor(true, 21, std::span(input_nodes), std::span(input_types), {}, nb_count,
                                  std::span(output_nodes), std::span(output_types), -1, -1);
     EXPECT_EQ(output_types, std::vector<snark::Type>({0, 0, 0, 0, 0, 0}));
     EXPECT_EQ(output_nodes, std::vector<snark::NodeId>({1, 3, 2, 4, 6, 3}));
@@ -612,7 +609,7 @@ TEST(DistributedTest, SampleNeighborsMultipleServers)
     std::vector<snark::NodeId> output_nodes(nb_count * input_nodes.size());
     std::vector<float> output_weights(nb_count * input_nodes.size());
     std::vector<snark::Type> output_types(nb_count * input_nodes.size(), -1);
-    c.WeightedSampleNeighbor(23, std::span(input_nodes), std::span(input_types), nb_count, std::span(output_nodes),
+    c.WeightedSampleNeighbor(23, std::span(input_nodes), std::span(input_types), {}, nb_count, std::span(output_nodes),
                              std::span(output_types), std::span(output_weights), -1, 0.0f, -1);
     EXPECT_EQ(output_types, std::vector<snark::Type>(6, 0));
     EXPECT_EQ(output_nodes, std::vector<snark::NodeId>({2, 2, 57, 56, 80, 81}));
@@ -630,7 +627,7 @@ TEST(DistributedTest, SampleNeighborsMultipleServersMissingNeighbors)
     std::vector<snark::NodeId> output_nodes(nb_count * input_nodes.size());
     std::vector<float> output_weights(nb_count * input_nodes.size());
     std::vector<snark::Type> output_types(nb_count * input_nodes.size(), -1);
-    c.WeightedSampleNeighbor(23, std::span(input_nodes), std::span(input_types), nb_count, std::span(output_nodes),
+    c.WeightedSampleNeighbor(23, std::span(input_nodes), std::span(input_types), {}, nb_count, std::span(output_nodes),
                              std::span(output_types), std::span(output_weights), -1, 0.0f, -1);
     EXPECT_EQ(output_types, std::vector<snark::Type>(6, -1));
     EXPECT_EQ(output_nodes, std::vector<snark::NodeId>(6, -1));
@@ -647,7 +644,7 @@ TEST(DistributedTest, UniformSampleNeighborsMultipleServers)
     const size_t nb_count = 2;
     std::vector<snark::NodeId> output_nodes(nb_count * input_nodes.size());
     std::vector<snark::Type> output_types(nb_count * input_nodes.size(), -1);
-    c.UniformSampleNeighbor(false, 23, std::span(input_nodes), std::span(input_types), nb_count,
+    c.UniformSampleNeighbor(false, 23, std::span(input_nodes), std::span(input_types), {}, nb_count,
                             std::span(output_nodes), std::span(output_types), -1, -1);
     EXPECT_EQ(output_types, std::vector<snark::Type>({0, 0, 0, 0, 0, 0}));
     EXPECT_EQ(output_nodes, std::vector<snark::NodeId>({2, 2, 57, 56, 80, 81}));
@@ -663,8 +660,8 @@ TEST(DistributedTest, UniformSampleNeighborsWithoutReplacementMultipleServers)
     const size_t nb_count = 2;
     std::vector<snark::NodeId> output_nodes(nb_count * input_nodes.size());
     std::vector<snark::Type> output_types(nb_count * input_nodes.size(), -1);
-    c.UniformSampleNeighbor(true, 23, std::span(input_nodes), std::span(input_types), nb_count, std::span(output_nodes),
-                            std::span(output_types), -1, -1);
+    c.UniformSampleNeighbor(true, 23, std::span(input_nodes), std::span(input_types), {}, nb_count,
+                            std::span(output_nodes), std::span(output_types), -1, -1);
     EXPECT_EQ(output_types, std::vector<snark::Type>({0, 0, 0, 0, 0, 0}));
     EXPECT_EQ(output_nodes, std::vector<snark::NodeId>({2, 4, 59, 57, 81, 79}));
 }
@@ -707,7 +704,7 @@ TEST(DistributedTest, NeighborCountMultipleServers)
     size_t size = input_nodes.size();
     std::vector<uint64_t> output_counts(size);
     std::fill_n(std::begin(output_counts), size, -1); // Fill with -1 to check update
-    c.NeighborCount(std::span(input_nodes), std::span(input_types), std::span(output_counts));
+    c.NeighborCount(std::span(input_nodes), std::span(input_types), {}, std::span(output_counts));
     EXPECT_EQ(output_counts, std::vector<uint64_t>({3}));
 }
 
@@ -752,7 +749,7 @@ TEST(DistributedTest, NeighborCountMismatchingOutputSize)
     std::vector<uint64_t> output_counts(size + 5);
 
     std::fill_n(std::begin(output_counts), size, -1); // Fill with -1 to check update
-    c.NeighborCount(std::span(input_nodes), std::span(input_types), std::span(output_counts));
+    c.NeighborCount(std::span(input_nodes), std::span(input_types), {}, std::span(output_counts));
     EXPECT_EQ(output_counts, std::vector<uint64_t>({3, 0, 0, 0, 0, 0}));
 }
 
@@ -778,7 +775,7 @@ TEST(DistributedTest, NeighborCountEmptyGraph)
                                                                 TestGraph::NeighborRecord{curr_node + 4, 2, 2.0f}}});
         }
 
-        TempFolder path("NeighborCountMismatchingOutputSizeEmptyGraphEng");
+        TempFolder path("NeighborCountEmptyGraph");
         auto partition = TestGraph::convert(path.path, "0_0", std::move(m), 1);
 
         // EmptyGraphEngine as engine service
@@ -799,7 +796,7 @@ TEST(DistributedTest, NeighborCountEmptyGraph)
     std::vector<uint64_t> output_counts(size + 5);
 
     std::fill_n(std::begin(output_counts), size, -1); // Fill with -1 to check update
-    c.NeighborCount(std::span(input_nodes), std::span(input_types), std::span(output_counts));
+    c.NeighborCount(std::span(input_nodes), std::span(input_types), {}, std::span(output_counts));
     EXPECT_EQ(output_counts, std::vector<uint64_t>({0, 0, 0, 0, 0, 0}));
 }
 
@@ -811,7 +808,7 @@ TEST(DistributedTest, NeighborCountMultipleTypesMultipleServers)
     std::vector<snark::NodeId> input_nodes = {0, 55, 100};
     std::vector<snark::Type> input_types = {0};
     std::vector<uint64_t> output_counts(input_nodes.size());
-    c.NeighborCount(std::span(input_nodes), std::span(input_types), std::span(output_counts));
+    c.NeighborCount(std::span(input_nodes), std::span(input_types), {}, std::span(output_counts));
     EXPECT_EQ(output_counts, std::vector<uint64_t>({4, 4, 0}));
 }
 
@@ -863,7 +860,7 @@ TEST(DistributedTest, FullNeighborsMultipleTypesMultipleServers)
     std::vector<snark::Type> output_types;
     std::vector<float> output_weights;
     std::vector<uint64_t> output_counts(input_nodes.size());
-    c.FullNeighbor(std::span(input_nodes), std::span(input_types), output_nodes, output_types, output_weights,
+    c.FullNeighbor(std::span(input_nodes), std::span(input_types), {}, output_nodes, output_types, output_weights,
                    std::span(output_counts));
     EXPECT_EQ(output_types, std::vector<snark::Type>({0, 1, 1}));
     EXPECT_EQ(output_nodes, std::vector<snark::NodeId>({1, 2, 3}));
@@ -882,7 +879,7 @@ TEST(DistributedTest, FullNeighborsMultipleServers)
     std::vector<snark::Type> output_types;
     std::vector<float> output_weights;
     std::vector<uint64_t> output_counts(input_nodes.size());
-    c.FullNeighbor(std::span(input_nodes), std::span(input_types), output_nodes, output_types, output_weights,
+    c.FullNeighbor(std::span(input_nodes), std::span(input_types), {}, output_nodes, output_types, output_weights,
                    std::span(output_counts));
     EXPECT_EQ(output_types, std::vector<snark::Type>({0, 0, 0, 0, 0, 0, 0, 0}));
     EXPECT_EQ(output_nodes, std::vector<snark::NodeId>({1, 2, 3, 4, 56, 57, 58, 59}));
@@ -935,8 +932,32 @@ TEST(DistributedTest, NodeTypesMultipleTypesNeighborsSpreadAcrossPartitions)
     std::vector<snark::NodeId> nodes = {0, 1, 2};
     std::vector<snark::Type> types(3, -3);
 
-    c.GetNodeType(std::span(nodes), std::span(types), -2);
+    c.GetNodeType(std::span(nodes), {}, std::span(types), -2);
     EXPECT_EQ(std::vector<snark::Type>({0, 1, 2}), types);
+}
+
+TEST(DistributedTest, NodeFeaturesMultipleTimestampsSpreadAcrossPartitions)
+{
+    std::vector<std::vector<float>> f0 = {TestGraph::serialize_temporal_features(
+        std::vector<snark::Timestamp>{0}, {std::vector<float>{1.0f, 2.0f, 3.0f}})};
+    std::vector<std::vector<float>> f1 = {TestGraph::serialize_temporal_features(
+        std::vector<snark::Timestamp>{1}, {std::vector<float>{4.0f, 5.0f, 6.0f}})};
+    std::vector<std::vector<float>> f2 = {TestGraph::serialize_temporal_features(
+        std::vector<snark::Timestamp>{2}, {std::vector<float>{7.0f, 8.0f, 9.0f}})};
+
+    auto environment =
+        CreateMultiServerSplitFeaturesEnvironment("NodeFeaturesMultipleTimestampsSpreadAcrossPartitions", f0, f1, f2);
+    auto &c = *environment.second;
+
+    std::vector<snark::NodeId> nodes = {0, 1, 2, 3};
+    std::vector<uint8_t> output(4 * 3 * 4);
+    std::vector<snark::FeatureMeta> features = {{0, 12}};
+    std::vector<snark::Timestamp> timestamps = {0, 1, 1, 1};
+
+    c.GetNodeFeature(std::span(nodes), std::span(timestamps), std::span(features), std::span(output));
+    std::span res(reinterpret_cast<float *>(output.data()), output.size() / sizeof(float));
+    EXPECT_EQ(std::vector<float>(std::begin(res), std::end(res)),
+              std::vector<float>({1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0}));
 }
 
 TEST(DistributedTest, NodeFeaturesMultipleTypesNeighborsSpreadAcrossPartitions)
@@ -956,33 +977,58 @@ TEST(DistributedTest, NodeFeaturesMultipleTypesNeighborsSpreadAcrossPartitions)
     std::vector<uint8_t> output(4 * 3 * 4);
     std::vector<snark::FeatureMeta> features = {{0, 12}};
 
-    c.GetNodeFeature(std::span(nodes), std::span(features), std::span(output));
+    c.GetNodeFeature(std::span(nodes), {}, std::span(features), std::span(output));
     std::span res(reinterpret_cast<float *>(output.data()), output.size() / sizeof(float));
     EXPECT_EQ(std::vector<float>(std::begin(res), std::end(res)),
               std::vector<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0}));
 }
 
-TEST(DistributedTest, NodeStringFeaturesMultipleTypesNeighborsSpreadAcrossPartitions)
+TEST(DistributedTest, NodeStringFeaturesMultipleTypesSpreadAcrossPartitions)
 {
-    std::vector<std::vector<float>> f0 = {std::vector<float>{1.0f, 2.0f, 3.0f}};
-    std::vector<std::vector<float>> f1 = {std::vector<float>{4.0f, 5.0f, 6.0f}};
+    std::vector<std::vector<float>> f0 = {std::vector<float>{1.0f, 2.0f, 3.0f, 4.0f}};
+    std::vector<std::vector<float>> f1 = {std::vector<float>{5.0f, 6.0f}};
     std::vector<std::vector<float>> f2 = {std::vector<float>{7.0f, 8.0f, 9.0f}};
 
-    auto environment = CreateMultiServerSplitFeaturesEnvironment(
-        "NodeStringFeaturesMultipleTypesNeighborsSpreadAcrossPartitions", f0, f1, f2);
+    auto environment =
+        CreateMultiServerSplitFeaturesEnvironment("NodeStringFeaturesMultipleTypesSpreadAcrossPartitions", f0, f1, f2);
     auto &c = *environment.second;
 
-    // 0 is a normal node
-    // 1, 2 has a parity with type = -1
-    // 3 is non existant
     std::vector<snark::NodeId> nodes = {0, 1, 2, 3};
     std::vector<uint8_t> output;
     std::vector<int64_t> dimensions(4);
     std::vector<snark::FeatureId> features = {0};
-    c.GetNodeStringFeature(std::span(nodes), std::span(features), std::span(dimensions), output);
+    c.GetNodeStringFeature(std::span(nodes), {}, std::span(features), std::span(dimensions), output);
     std::span res(reinterpret_cast<float *>(output.data()), output.size() / sizeof(float));
     EXPECT_EQ(std::vector<float>(std::begin(res), std::end(res)), std::vector<float>({1, 2, 3, 4, 5, 6, 7, 8, 9}));
-    EXPECT_EQ(dimensions, std::vector<int64_t>({12, 12, 12, 0}));
+    EXPECT_EQ(dimensions, std::vector<int64_t>({16, 8, 12, 0}));
+}
+
+TEST(DistributedTest, NodeStringFeaturesMultipleTimestampsSpreadAcrossPartitions)
+{
+    std::vector<std::vector<float>> f0 = {TestGraph::serialize_temporal_features(
+        std::vector<snark::Timestamp>{4}, {std::vector<float>{1.0f, 2.0f, 3.0f, 4.0f}})};
+    std::vector<std::vector<float>> f1 = {TestGraph::serialize_temporal_features(
+        std::vector<snark::Timestamp>{1, 3}, {std::vector<float>{5.0f, 6.0f}, std::vector<float>{11.0f, 12.0f}})};
+    std::vector<std::vector<float>> f2 = {TestGraph::serialize_temporal_features(
+        std::vector<snark::Timestamp>{2}, {std::vector<float>{7.0f, 8.0f, 9.0f}})};
+
+    auto environment = CreateMultiServerSplitFeaturesEnvironment(
+        "NodeStringFeaturesMultipleTimestampsSpreadAcrossPartitions", f0, f1, f2);
+    auto &c = *environment.second;
+
+    // 0 has a feature that is added to a node after requested timestamp
+    // 1 is an old feature, 2 is the latest.
+    // 3 is a regular timestamped feature.
+    std::vector<snark::NodeId> nodes = {0, 1, 2, 3};
+    std::vector<uint8_t> output;
+    std::vector<int64_t> dimensions(4);
+    std::vector<snark::FeatureId> features = {0};
+    std::vector<snark::Timestamp> timestamps = {3, 3, 3, 3};
+
+    c.GetNodeStringFeature(std::span(nodes), std::span(timestamps), std::span(features), std::span(dimensions), output);
+    std::span res(reinterpret_cast<float *>(output.data()), output.size() / sizeof(float));
+    EXPECT_EQ(std::vector<float>(std::begin(res), std::end(res)), std::vector<float>({11, 12, 7, 8, 9}));
+    EXPECT_EQ(dimensions, std::vector<int64_t>({0, 8, 12, 0}));
 }
 
 TEST(DistributedTest, NodeSparseFeaturesMultipleTypesNeighborsSpreadAcrossPartitions)
@@ -1013,12 +1059,57 @@ TEST(DistributedTest, NodeSparseFeaturesMultipleTypesNeighborsSpreadAcrossPartit
     std::vector<std::vector<int64_t>> indices(features.size());
     std::vector<int64_t> dimensions = {-1};
 
-    c.GetNodeSparseFeature(std::span(nodes), std::span(features), std::span(dimensions), indices, data);
+    c.GetNodeSparseFeature(std::span(nodes), {}, std::span(features), std::span(dimensions), indices, data);
     EXPECT_EQ(indices.size(), 1);
     EXPECT_EQ(data.size(), 1);
     EXPECT_EQ(std::vector<int64_t>({0, 1, 14, 20, 1, 1, 13, 42, 2, 3, 8, 9, 2, 4, 3, 2}), indices.front());
     auto tmp = reinterpret_cast<int32_t *>(data.front().data());
     EXPECT_EQ(std::vector<int32_t>({1, 1, 5, 42}), std::vector<int32_t>(tmp, tmp + 4));
+    EXPECT_EQ(std::vector<int64_t>({3}), dimensions);
+}
+
+TEST(DistributedTest, NodeSparseFeaturesMultipleTimestampsSpreadAcrossPartitions)
+{
+    // indices - 1, 14, 20, data - 1
+    std::vector<int32_t> f0_data = {3, 3, 1, 0, 14, 0, 20, 0, 1};
+    // indices - 1, 13, 42, data - 1
+    std::vector<int32_t> f1_data = {3, 3, 1, 0, 13, 0, 42, 0, 1};
+    // indices - [3, 8, 9], [4, 3, 2] data - [5, 42]
+    std::vector<int32_t> f2_data = {6, 3, 3, 0, 8, 0, 9, 0, 4, 0, 3, 0, 2, 0, 5, 42};
+    auto start = reinterpret_cast<float *>(f0_data.data());
+    std::vector<std::vector<float>> f0 = {TestGraph::serialize_temporal_features(
+        std::vector<snark::Timestamp>{4}, {std::vector<float>(start, start + f0_data.size())})};
+
+    start = reinterpret_cast<float *>(f1_data.data());
+    std::vector<std::vector<float>> f1 = {TestGraph::serialize_temporal_features(
+        std::vector<snark::Timestamp>{1, 3},
+        {std::vector<float>{5.0f, 6.0f}, std::vector<float>(start, start + f1_data.size())})};
+
+    start = reinterpret_cast<float *>(f2_data.data());
+    std::vector<std::vector<float>> f2 = {TestGraph::serialize_temporal_features(
+        std::vector<snark::Timestamp>{2}, {std::vector<float>(start, start + f2_data.size())})};
+
+    auto environment = CreateMultiServerSplitFeaturesEnvironment(
+        "NodeSparseFeaturesMultipleTimestampsSpreadAcrossPartitions", f0, f1, f2);
+    auto &c = *environment.second;
+
+    // 0 is a normal node
+    // 1, 2 has a parity with type = -1
+    // 3 is non existant
+    std::vector<snark::NodeId> nodes = {0, 1, 2, 3};
+    std::vector<snark::FeatureId> features = {0};
+    std::vector<std::vector<uint8_t>> data(features.size());
+    std::vector<std::vector<int64_t>> indices(features.size());
+    std::vector<int64_t> dimensions = {-1};
+    std::vector<snark::Timestamp> timestamps = {3, 3, 3, 3};
+
+    c.GetNodeSparseFeature(std::span(nodes), std::span(timestamps), std::span(features), std::span(dimensions), indices,
+                           data);
+    EXPECT_EQ(indices.size(), 1);
+    EXPECT_EQ(data.size(), 1);
+    EXPECT_EQ(std::vector<int64_t>({1, 1, 13, 42, 2, 3, 8, 9, 2, 4, 3, 2}), indices.front());
+    auto tmp = reinterpret_cast<int32_t *>(data.front().data());
+    EXPECT_EQ(std::vector<int32_t>({1, 5, 42}), std::vector<int32_t>(tmp, tmp + 3));
     EXPECT_EQ(std::vector<int64_t>({3}), dimensions);
 }
 
@@ -1214,7 +1305,7 @@ TEST(DistributedTest, TestFetchNodeFeaturesFromOnlySamplerServer)
     std::vector<snark::NodeId> input_nodes = {0, 1, 2};
     std::vector<float> output(fv_size * input_nodes.size(), -2);
     std::vector<snark::FeatureMeta> features = {{snark::FeatureId(0), snark::FeatureSize(fv_size * 4)}};
-    s.client->GetNodeFeature(std::span(input_nodes), std::span(features),
+    s.client->GetNodeFeature(std::span(input_nodes), {}, std::span(features),
                              std::span(reinterpret_cast<uint8_t *>(output.data()), sizeof(float) * output.size()));
     EXPECT_EQ(output, std::vector<float>(fv_size * input_nodes.size(), 0));
 }
