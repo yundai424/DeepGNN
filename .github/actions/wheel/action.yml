@@ -82,6 +82,6 @@ runs:
     - if: runner.os == 'Linux'
       run: |
         pip install auditwheel
-        auditwheel show src/python/dist/deepgnn_ge-"${BUILD_VERSION}"-py3-none-"${PLAT_NAME}".whl
+        auditwheel show dist/deepgnn_ge-"${BUILD_VERSION}"-py3-none-"${PLAT_NAME}".whl
       name: Audit linux wheel
       shell: bash
