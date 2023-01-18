@@ -306,12 +306,12 @@ std::function<void()> GRPCClient::AsyncCompleteRpc(size_t index)
             }
             else
             {
-                RAW_LOG_ERROR("Request failed, code: %d. Message: %s. Error detail: %s", call->status.error_code(),
-                              call->status.error_message().c_str(), call->status.error_details().c_str());
+                RAW_LOG_ERROR("Request failed, code: %d. Message: %s. Error detail: %s. Context error string: %s", call->status.error_code(),
+                              call->status.error_message().c_str(), call->status.error_details().c_str(), call->context.debug_error_string());
                 try
                 {
                     throw std::runtime_error(std::string("Request failed. Message: ") + call->status.error_message() +
-                    std::string("Error detail: ") + call->status.error_details());
+                    std::string("Error detail: ") + call->status.error_details() + std::string("Context error string: " + call->context.debug_error_string()));
                 }
                 catch (std::exception &e)
                 {
