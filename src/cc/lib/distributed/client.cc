@@ -306,11 +306,12 @@ std::function<void()> GRPCClient::AsyncCompleteRpc(size_t index)
             }
             else
             {
-                RAW_LOG_ERROR("Request failed, code: %d. Message: %s", call->status.error_code(),
-                              call->status.error_message().c_str());
+                RAW_LOG_ERROR("Request failed, code: %d. Message: %s. Error detail: %s", call->status.error_code(),
+                              call->status.error_message().c_str(), call->status.error_details().c_str());
                 try
                 {
-                    throw std::runtime_error(std::string("Request failed. Message: ") + call->status.error_message());
+                    throw std::runtime_error(std::string("Request failed. Message: ") + call->status.error_message() +
+                    std::string("Error detail: ") + call->status.error_details());
                 }
                 catch (std::exception &e)
                 {
@@ -867,6 +868,7 @@ void GRPCClient::UniformSampleNeighbor(bool without_replacement, int64_t seed, s
     {
         request.set_seed(subseed(engine));
 
+        RAW_LOG_WARNING("issue request to shard %s", std::to_string(shard).c_str());
         auto *call = new AsyncClientCall();
 
         auto response_reader =
